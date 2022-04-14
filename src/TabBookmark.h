@@ -62,7 +62,7 @@ void TraversalAccessible(IAccessible *node, Function f)
                     IAccessible* child = NULL;
                     if (S_OK == dispatch->QueryInterface(IID_IAccessible, (void**)&child))
                     {
-                        if ((GetAccessibleState(child) & STATE_SYSTEM_INVISIBLE) == 0) // Ö»±éÀú¿É¼û½Úµã
+                        if ((GetAccessibleState(child) & STATE_SYSTEM_INVISIBLE) == 0) // åªéåŽ†å¯è§èŠ‚ç‚¹
                         {
                             if (f(child))
                             {
@@ -97,7 +97,7 @@ void TraversalRawAccessible(IAccessible *node, Function f)
                     IAccessible* child = NULL;
                     if (S_OK == dispatch->QueryInterface(IID_IAccessible, (void**)&child))
                     {
-                        //if ((GetAccessibleState(child) & STATE_SYSTEM_INVISIBLE) == 0) // Ö»±éÀú¿É¼û½Úµã
+                        //if ((GetAccessibleState(child) & STATE_SYSTEM_INVISIBLE) == 0) // åªéåŽ†å¯è§èŠ‚ç‚¹
                         {
                             if (f(child))
                             {
@@ -211,7 +211,7 @@ IAccessible* FindChildElement(IAccessible *parent, long role, int skipcount = 0)
         TraversalAccessible(parent, [&element, &role, &i, &skipcount]
                             (IAccessible * child)
         {
-            //DebugLog(L"µ±Ç° %d,%d", i, skipcount);
+            //DebugLog(L"å½“å‰ %d,%d", i, skipcount);
             if (GetAccessibleRole(child) == role)
             {
                 if (i == skipcount)
@@ -248,7 +248,7 @@ void GetAccessibleSize(IAccessible *node, Function f)
     }
 }
 
-// Êó±êÊÇ·ñÔÚÄ³¸ö±êÇ©ÉÏ
+// é¼ æ ‡æ˜¯å¦åœ¨æŸä¸ªæ ‡ç­¾ä¸Š
 bool IsOnOneTab(IAccessible* top, POINT pt)
 {
     bool flag = false;
@@ -291,7 +291,7 @@ bool IsOnOneTab(IAccessible* top, POINT pt)
     return flag;
 }
 
-// ÊÇ·ñÖ»ÓÐÒ»¸ö±êÇ©
+// æ˜¯å¦åªæœ‰ä¸€ä¸ªæ ‡ç­¾
 bool IsOnlyOneTab(IAccessible* top)
 {
     IAccessible* PageTabList = FindPageTabList(top);
@@ -331,7 +331,7 @@ bool IsOnlyOneTab(IAccessible* top)
     return false;
 }
 
-// Êó±êÊÇ·ñÔÚ±êÇ©À¸ÉÏ
+// é¼ æ ‡æ˜¯å¦åœ¨æ ‡ç­¾æ ä¸Š
 bool IsOnTheTab(IAccessible* top, POINT pt)
 {
     bool flag = false;
@@ -386,6 +386,80 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
             wheel_tab_ing = false;
             return 1;
         }
+
+
+
+        //EditByJN20220414
+        if (wParam == WM_RBUTTONUP)
+        {
+           if (!IsPressed(VK_SHIFT))
+           {
+            HWND hwnd = WindowFromPoint(pmouse->pt);
+            IAccessible *TopContainerView = GetTopContainerView(hwnd);
+
+            bool isOnOneTab = IsOnOneTab(TopContainerView, pmouse->pt);
+            bool isOnlyOneTab = IsOnlyOneTab(TopContainerView);
+            bool isOnTheTab = IsOnTheTab(TopContainerView, pmouse->pt);
+            if (TopContainerView)
+            {
+                TopContainerView->Release();
+            }
+            if (isOnTheTab && !isOnOneTab)
+            {
+	            	std::thread th([]() {
+                       //SendKey(VK_LBUTTON);
+                       ExecuteCommand(IDC_NEW_TAB);
+                        Sleep(50);
+						keybd_event(VK_CONTROL, 0x1D, KEYEVENTF_EXTENDEDKEY | 0, 0);
+						keybd_event('V', 0x2F, KEYEVENTF_EXTENDEDKEY | 0, 0);
+						keybd_event('V', 0x2F, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+						keybd_event(VK_CONTROL, 0x1D, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+
+                        Sleep(50);
+						keybd_event(VK_CONTROL, 0x1D, KEYEVENTF_EXTENDEDKEY | 0, 0);
+						keybd_event('A', 0x2F, KEYEVENTF_EXTENDEDKEY | 0, 0);
+						keybd_event('A', 0x2F, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+						keybd_event(VK_CONTROL, 0x1D, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);	
+                   });
+                   th.detach();
+                   return 1;             
+            }
+            if (isOnOneTab)
+            {
+                if (isOnlyOneTab)
+                {
+                    // æœ€åŽä¸€ä¸ªæ ‡ç­¾é¡µè¦å…³é—­ï¼Œæ–°å»ºä¸€ä¸ªæ ‡ç­¾
+                    //DebugLog(L"keep_tab");
+                    ExecuteCommand(IDC_NEW_TAB);
+                    ExecuteCommand(IDC_SELECT_PREVIOUS_TAB);
+                    ExecuteCommand(IDC_CLOSE_TAB);
+                }
+                else
+                {
+                   std::thread th([]() {
+                       //SendKey(VK_LBUTTON);
+                       mouse_event(MOUSEEVENTF_LEFTDOWN,0,0,0,0);
+                       Sleep(10);
+                       mouse_event(MOUSEEVENTF_LEFTUP,0,0,0,0);
+                       Sleep(50);
+                       ExecuteCommand(IDC_CLOSE_TAB);
+                   });
+                   th.detach();
+                    //ExecuteCommand(IDC_SELECT_PREVIOUS_TAB, hwnd);
+                    //ExecuteCommand(IDC_CLOSE_TAB, hwnd);
+                }
+                return 1;
+            }
+           }
+        }
+        //EditByJN20220414
+
+
+
+
+
+
+
 
 
         //if (wParam == WM_MBUTTONDOWN)
@@ -443,7 +517,7 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
                 TopContainerView->Release();
             }
 
-            // Ë«»÷¹Ø±Õ
+            // åŒå‡»å…³é—­
             if (isOnOneTab)
             {
                 if (isOnlyOneTab)
@@ -489,6 +563,74 @@ next:
     return CallNextHookEx(mouse_hook, nCode, wParam, lParam);
 }
 
+//by yisqi 20220414
+// #pragma comment(lib,"legacy_stdio_definitions.lib")
+// #pragma comment(lib,"psapi.lib")
+// æ˜¯å¦ç„¦ç‚¹åœ¨åœ°å€æ 
+bool IsOmniboxViewFocus(IAccessible* top)
+{
+    bool flag = false;
+
+    // å¯»æ‰¾åœ°å€æ 
+    IAccessible *LocationBarView = NULL;
+    if (top)
+    {
+        TraversalAccessible(top, [&LocationBarView]
+        (IAccessible* child) {
+            if (GetAccessibleRole(child) == ROLE_SYSTEM_TOOLBAR)
+            {
+                IAccessible *group = FindChildElement(child, ROLE_SYSTEM_GROUPING);
+                if (group)
+                {
+                    LocationBarView = group;
+                    child->Release();
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
+
+    if (LocationBarView)
+    {
+        IAccessible *OmniboxViewViews = FindChildElement(LocationBarView, ROLE_SYSTEM_TEXT);
+        if(OmniboxViewViews)
+        {
+
+         TraversalAccessible(LocationBarView,  [&OmniboxViewViews, &flag]
+            (IAccessible* child){
+                if(GetAccessibleRole(child)==ROLE_SYSTEM_TEXT)
+                {
+	                 if( (GetAccessibleState(OmniboxViewViews) & STATE_SYSTEM_FOCUSED) == STATE_SYSTEM_FOCUSED)
+			                        {
+			                            flag = true;
+			                        }
+                }
+                if(flag) child->Release();
+                return flag;
+            });
+        LocationBarView->Release();
+
+             }
+  
+    }
+    else
+    {
+        // if (top) DebugLog(L"IsOmniboxViewFocus failed");
+    }
+    return flag;
+}
+// åœ°å€æ å›žè½¦
+//by yisqi 20220414
+
+
+
+
+
+
+
+
+
 bool IsNeedKeep()
 {
     bool keep_tab = false;
@@ -522,6 +664,41 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
         {
             keep_tab = IsNeedKeep();
         }
+
+
+
+
+         //by yisqi 20220414
+        if (wParam == (char)13)
+        {
+	        IAccessible* TopContainerView = GetTopContainerView(GetFocus());
+	        if( !IsPressed(VK_MENU) && IsOmniboxViewFocus(TopContainerView) )
+            {
+                 // write_text("555ok");
+                  // SendKeys(VK_MENU, VK_RETURN);
+              	keybd_event(VK_MENU, 0x1D, KEYEVENTF_EXTENDEDKEY | 0, 0);
+				keybd_event(VK_RETURN, 0x2F, KEYEVENTF_EXTENDEDKEY | 0, 0);
+				keybd_event(VK_RETURN, 0x2F, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+				keybd_event(VK_MENU, 0x1D, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+                return 1;
+            }
+	        //https://github.com/shuax/GreenChrome/blob/master/src/TabBookmark.h
+           /* std::CWnd *pControl;
+            pControl = this->GetFocus();*/
+            //int nId = pWnd->GetDlgCtrlID();
+            // HWND pWnd = GetForegroundWindow();
+            //CString str;
+            // write_text(to_string(static_cast<long long>((int)pWnd)));
+            
+        }
+        //by yisqi 20220414
+
+
+
+
+
+
+        
 
         if (keep_tab)
         {
