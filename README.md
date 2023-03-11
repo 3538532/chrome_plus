@@ -13,3 +13,4 @@
 [![build status](https://github.com/shuax/chrome_plus/actions/workflows/build.yml/badge.svg)](https://github.com/shuax/chrome_plus/actions/workflows/build.yml)
 # 安装
 dll放入解压版Chrome目录即可
+
